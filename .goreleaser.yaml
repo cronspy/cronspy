@@ -1,0 +1,56 @@
+# Releases: a v* tag builds static binaries for Linux and macOS, signs the checksums with cosign
+# (Sigstore, keyless), and publishes the archives, .deb/.rpm packages, a container image and the
+# Homebrew cask.
+version: 2
+project_name: cronspy
+
+builds:
+  - main: .
+    binary: cronspy
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{.Version}}"]
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
+
+nfpms:
+  - package_name: cronspy
+    homepage: https://cronspy.com
+    maintainer: CronSpy
+    description: Runs a cron job and tells CronSpy how it went, always exiting with the job's own code.
+    license: MIT
+    formats: [deb, rpm]
+    bindir: /usr/bin
+
+dockers_v2:
+  - images: [ghcr.io/cronspy/cronspy]
+    tags: ["{{ .Version }}", latest]
+    platforms: [linux/amd64, linux/arm64]
+
+homebrew_casks:
+  - repository:
+      owner: cronspy
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://cronspy.com
+    description: Runs a cron job and tells CronSpy how it went
+    license: MIT
+    # The binary is not notarized by Apple: without this, Gatekeeper quarantines it on install.
+    hooks:
+      post:
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/cronspy"]
