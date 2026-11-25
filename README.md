@@ -20,9 +20,17 @@ In a crontab:
 
 - Homebrew: `brew install cronspy/tap/cronspy`
 - Debian and Ubuntu, Fedora and RHEL: the `.deb` and `.rpm` on the [releases](https://github.com/cronspy/cronspy/releases)
-- Docker: `ghcr.io/cronspy/cronspy`
 - Go: `go install github.com/cronspy/cronspy@latest`
 - Or the binary for Linux or macOS (amd64, arm64) from the releases
+
+In a container (a Kubernetes CronJob, a scheduled task), copy it into your job's image from
+`ghcr.io/cronspy/cronspy`:
+
+```dockerfile
+COPY --from=ghcr.io/cronspy/cronspy:0.1.1 /usr/bin/cronspy /usr/bin/cronspy
+ENTRYPOINT ["cronspy", "run", "--monitor", "nightly-backup", "--"]
+CMD ["/app/backup.sh"]
+```
 
 Every release has a `checksums.txt` signed with [cosign](https://docs.sigstore.dev/), keyless,
 by this repository's release workflow. To check a download:
